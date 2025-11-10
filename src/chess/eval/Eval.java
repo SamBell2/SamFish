@@ -2,7 +2,6 @@ package chess.eval;
 
 import chess.Board;
 import chess.Bot;
-import chess.logging.Logger;
 import chess.pieces.*;
 import chess.syzygy.Syzygy;
 import java.util.ArrayList;
@@ -10,25 +9,28 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class Eval {
-  Logger logger;
+  class BoardWithEval {
+    Board board;
+    float eval;
+  }
   Bot bot;
   Syzygy syzygyCalculator = new Syzygy();
 
-  public Eval(Logger prevLogger, Bot bot) {
-    logger = prevLogger;
+  public Eval(Bot bot) {
     this.bot = bot;
   }
 
   public float evaluate(Board board, boolean white /*boolean showReasons */) {
     float points = 0;
-    if (white && board.whiteWon(!white, false) == 0) points += 50000;
-    if (!white && board.whiteWon(!white, false) == 1) points += 50000;
-    if (white && board.whiteWon(!white, false) == 1) points -= 50000;
-    if (!white && board.whiteWon(!white, false) == 0) points -= 50000;
+    int whiteWon = board.whiteWon(!white, false);
+    if (white && whiteWon == 0) points += 50000;
+    if (!white && whiteWon == 1) points += 50000;
+    if (white && whiteWon == 1) points -= 50000;
+    if (!white && whiteWon == 0) points -= 50000;
     if (board.whiteWon(white, false) == -2) points -= 20;
     if (board.whiteWon(white, false) == -3) points -= 20;
-    if (board.whiteWon(!white, false) == -2) points -= 20;
-    if (board.whiteWon(!white, false) == -3) points -= 20;
+    if (whiteWon == -2) points -= 20;
+    if (whiteWon == -3) points -= 20;
     if (points != 0) return points;
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 8; j++) {
@@ -82,33 +84,35 @@ public class Eval {
     return moves[maxIndex];
   }
 
-  public ArrayList<HashMap<String, Board>> findPositions(
+  public ArrayList<HashMap<String, BoardWithEval>> findPositions(
       Board board, boolean white, Integer depth, Integer time, Long finTime, String firstMove) {
     long millis = System.currentTimeMillis();
-    ArrayList<HashMap<String, Board>> positions = new ArrayList<HashMap<String, Board>>();
+    ArrayList<HashMap<String, BoardWithEval>> positions = new ArrayList<HashMap<String, BoardWithEval>>();
     String[] nextMoves = board.nextPositions(white, false);
     String[] bestMoves = new String[5];
     float[] bestPoints = new float[] {-100000, -100000, -100000, -100000, -100000};
     ArrayList<String> skipped = new ArrayList<String>();
     for (String move : nextMoves) {
       if (bot.stopSearch()) {
-        logger.info("stopping");
+        Bot.logger.info("stopping");
         continue;
       }
+      Board pos = board.newBoardWithmove(move);
       long timeElapsed = System.currentTimeMillis() - millis;
-        if ((time - timeElapsed <= 10) || System.currentTimeMillis() >= finTime) {
-          Board pos = board.newBoardWithmove(move);
-          HashMap<String, Board> toAdd = new HashMap<String, Board>();
-          toAdd.put(firstMove, pos);
+        if (time != null && ((time - timeElapsed <= 10) || System.currentTimeMillis() >= finTime)) {
+          HashMap<String, BoardWithEval> toAdd = new HashMap<String, BoardWithEval>();
+          BoardWithEval p = new BoardWithEval();
+          p.board = pos; p.eval = evaluate(board, white);
+          toAdd.put(firstMove, p);
           positions.add(toAdd);
           continue;
         }
       String kingPos = board.kingSquare(white);
       boolean stop = false;
-      for (String nextMove : board.newBoardWithmove(move).nextPositions(!white, false)) {
+      for (String nextMove : pos.nextPositions(!white, false)) {
         if (kingPos == null) {
-          logger.warning(kingPos);
-          logger.warning(board.toString());
+          Bot.logger.warning(kingPos);
+          Bot.logger.warning(board.toString());
         }
         if (nextMove != null && kingPos != null) {
           if (nextMove.charAt(2) == kingPos.charAt(0) && nextMove.charAt(3) == kingPos.charAt(1)) {
@@ -122,7 +126,8 @@ public class Eval {
         continue;
       }
       if (move == null) continue;
-      if (evaluate(board.newBoardWithmove(move), white) > bestPoints[0]) {
+      float eval = evaluate(pos, white);
+      if (eval > bestPoints[0]) {
         bestMoves[4] = bestMoves[3];
         bestMoves[3] = bestMoves[2];
         bestMoves[2] = bestMoves[1];
@@ -132,8 +137,8 @@ public class Eval {
         bestPoints[3] = bestPoints[2];
         bestPoints[2] = bestPoints[1];
         bestPoints[1] = bestPoints[0];
-        bestPoints[0] = evaluate(board.newBoardWithmove(move), white);
-      } else if (evaluate(board.newBoardWithmove(move), white) > bestPoints[1]) {
+        bestPoints[0] = eval;
+      } else if (eval > bestPoints[1]) {
         bestMoves[4] = bestMoves[3];
         bestMoves[3] = bestMoves[2];
         bestMoves[2] = bestMoves[1];
@@ -141,27 +146,27 @@ public class Eval {
         bestPoints[4] = bestPoints[3];
         bestPoints[3] = bestPoints[2];
         bestPoints[2] = bestPoints[1];
-        bestPoints[1] = evaluate(board.newBoardWithmove(move), white);
-      } else if (evaluate(board.newBoardWithmove(move), white) > bestPoints[2]) {
+        bestPoints[1] = eval;
+      } else if (eval > bestPoints[2]) {
         bestMoves[4] = bestMoves[3];
         bestMoves[3] = bestMoves[2];
         bestMoves[2] = move;
         bestPoints[4] = bestPoints[3];
         bestPoints[3] = bestPoints[2];
-        bestPoints[2] = evaluate(board.newBoardWithmove(move), white);
-      } else if (evaluate(board.newBoardWithmove(move), white) > bestPoints[3]) {
+        bestPoints[2] = eval;
+      } else if (eval > bestPoints[3]) {
         bestMoves[4] = bestMoves[3];
         bestMoves[3] = move;
         bestPoints[4] = bestPoints[3];
-        bestPoints[3] = evaluate(board.newBoardWithmove(move), white);
-      } else if (evaluate(board.newBoardWithmove(move), white) > bestPoints[4]) {
+        bestPoints[3] = eval;
+      } else if (eval > bestPoints[4]) {
         bestMoves[4] = move;
-        bestPoints[4] = evaluate(board.newBoardWithmove(move), white);
+        bestPoints[4] = eval;
       }
     }
     for (String move : bestMoves) {
       if (skipped.contains(move)) {
-        logger.warning("Failed to skip " + move);
+        Bot.logger.warning("Failed to skip " + move);
       }
     }
     int count = 0;
@@ -180,8 +185,10 @@ public class Eval {
     for (String move : cleanBestMoves) {
       Board pos = board.newBoardWithmove(move);
       if (depth != null && depth == 1) {
-        HashMap<String, Board> toAdd = new HashMap<String, Board>();
-        toAdd.put(firstMove, pos);
+        HashMap<String, BoardWithEval> toAdd = new HashMap<String, BoardWithEval>();
+        BoardWithEval p = new BoardWithEval();
+        p.board = pos; p.eval = evaluate(board, white);
+        toAdd.put(firstMove, p);
         positions.add(toAdd);
         continue;
       }
@@ -190,8 +197,10 @@ public class Eval {
       } else {
         long timeElapsed = System.currentTimeMillis() - millis;
         if ((time - timeElapsed <= 10) || System.currentTimeMillis() >= finTime) {
-          HashMap<String, Board> toAdd = new HashMap<String, Board>();
-          toAdd.put(firstMove, pos);
+          HashMap<String, BoardWithEval> toAdd = new HashMap<String, BoardWithEval>();
+          BoardWithEval p = new BoardWithEval();
+          p.board = pos; p.eval = evaluate(board, white);
+          toAdd.put(firstMove, p);
           positions.add(toAdd);
           continue;
         }
@@ -202,52 +211,68 @@ public class Eval {
     return positions;
   }
 
-  public String findMove(Board board, boolean white, Integer depth, Integer time, Bot bot, String syzygyPath) {
+  public String findMove(Board board, boolean white, Integer depth, Integer time, Bot bot, String syzygyPath, boolean firstMove) {
+    if (firstMove) {
+      String[] nextMoves = board.nextPositions(white, false);
+      for (String move: nextMoves) {
+        if (!board.check(white)) {
+          return move;
+        }
+      }
+      return nextMoves[0];
+    }
     if (syzygyPath != null) {
       syzygyCalculator.newPath(syzygyPath);
       if (syzygyCalculator.newPos(board)) {
-        logger.debug("using syzygy");
+        Bot.logger.debug("using syzygy");
         return syzygyCalculator.bestmove(white);
       } else {
-        logger.debug("not using syzygy");
+        Bot.logger.debug("not using syzygy");
       }
     }
-    logger.output("Calculating...");
+    Bot.logger.info("Calculating...");
     // System.out.println(board);
-    ArrayList<HashMap<String, Board>> positions = new ArrayList<HashMap<String, Board>>();
+    ArrayList<HashMap<String, BoardWithEval>> positions = new ArrayList<HashMap<String, BoardWithEval>>();
+    String[] nextMoves;
     if (depth != null) {
-      String[] nextMoves = board.nextPositions(white, false);
+      nextMoves = board.nextPositions(white, false);
       for (String move : nextMoves) {
         Board pos = board.newBoardWithmove(move);
         int whiteWon = pos.whiteWon(!white, false);
         if ((whiteWon == 1 && !white) || (whiteWon == 0 && white)) return move;
         if (whiteWon == -2) {
-          HashMap<String, Board> map = new HashMap<String, Board>();
-          map.put(move, pos);
+          HashMap<String, BoardWithEval> map = new HashMap<String, BoardWithEval>();
+          BoardWithEval p = new BoardWithEval();
+          p.board = pos;
+          p.eval = evaluate(board, white);
+          map.put(move, p);
           positions.add(map);
           continue;
         }
         if (pos.check(white)) {
-          logger.info("move " + move + " results in check.");
+          Bot.logger.info("move " + move + " results in check.");
           continue;
         }
         if (move == null) continue;
         positions.addAll(findPositions(pos, !white, depth * 2 - 1, null, null, move));
       }
     } else {
-      String[] nextMoves = board.nextPositions(white, false);
+      nextMoves = board.nextPositions(white, false);
       for (String move : nextMoves) {
         Board pos = board.newBoardWithmove(move);
         int whiteWon = pos.whiteWon(!white, false);
         if ((whiteWon == 1 && !white) || (whiteWon == 0 && white)) return move;
         if (whiteWon == -2) {
-          HashMap<String, Board> map = new HashMap<String, Board>();
-          map.put(move, pos);
+          HashMap<String, BoardWithEval> map = new HashMap<String, BoardWithEval>();
+          BoardWithEval p = new BoardWithEval();
+          p.board = pos;
+          p.eval = evaluate(board, white);
+          map.put(move, p);
           positions.add(map);
           continue;
         }
         if (pos.check(white)) {
-          logger.info("move " + move + " results in check.");
+          Bot.logger.info("move " + move + " results in check.");
           continue;
         }
         if (move == null) continue;
@@ -256,21 +281,22 @@ public class Eval {
                 pos,
                 !white,
                 null,
-                (time - 10) / nextMoves.length,
-                System.currentTimeMillis() + time - 100,
+                (time - 100) / nextMoves.length,
+                System.currentTimeMillis() + time - 1000,
                 move));
       }
     }
-    logger.info("found moves");
-    HashMap<String, ArrayList<Board>> groupedPositions = new HashMap<String, ArrayList<Board>>();
-    for (HashMap<String, Board> map : positions) {
-      for (Map.Entry<String, Board> entry : map.entrySet()) {
+    Bot.logger.info("found moves");
+    HashMap<String, ArrayList<BoardWithEval>> groupedPositions = new HashMap<String, ArrayList<BoardWithEval>>();
+    for (HashMap<String, BoardWithEval> map : positions) {
+      for (Map.Entry<String, BoardWithEval> entry : map.entrySet()) {
         String key = entry.getKey();
-        Board newBoard = entry.getValue();
+        BoardWithEval newBoard = entry.getValue();
 
         groupedPositions.computeIfAbsent(key, _ -> new ArrayList<>()).add(newBoard);
       }
     }
+    Bot.logger.info("grouped moves");
     /*for (String move : groupedPositions.keySet()) {
       logger.info("found move " + move + "(" + Integer.toString((int)evaluate(board.newBoardWithmove(move), white)) + ")");
     }*/
@@ -278,11 +304,12 @@ public class Eval {
     HashMap<String, Integer> movesWithPoints = new HashMap<String, Integer>();
     for (String move : groupedPositions.keySet()) {
       int total = 0;
-      for (Board newBoard : groupedPositions.get(move)) {
-        total += evaluate(newBoard, white);
+      for (BoardWithEval newBoard : groupedPositions.get(move)) {
+        total += newBoard.eval;
       }
       movesWithPoints.put(move, total / groupedPositions.get(move).size());
     }
+    Bot.logger.info("got points for moves");
     String bestMove = "a1a1";
     int currentMax = -1000000000;
     for (String move : movesWithPoints.keySet()) {
@@ -292,8 +319,9 @@ public class Eval {
         currentMax = movesWithPoints.get(move);
       }
     }
+    Bot.logger.info("picked move");
     bot.lastMove = bestMove;
-    logger.info("Move " + bestMove + " is " + Integer.toString(currentMax) + " points.");
+    Bot.logger.info("Move " + bestMove + " is " + Integer.toString(currentMax) + " points.");
     return bestMove;
   }
 }

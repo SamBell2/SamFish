@@ -51,7 +51,7 @@ public class Logger {
         while (!outFolder.mkdir()) {
           outFolder = new File(outFolder.getAbsolutePath() + "2");
         }
-        outFile = new File(outFolder, fileName);
+        outFile = new File(outFolder, fileName + ".log");
         outFile.createNewFile();
         writer = new FileWriter(outFile);
       } catch (IOException e) {
@@ -63,43 +63,49 @@ public class Logger {
     debug = debugOn;
   }
 
-  public void output(String msg) {
+  public void output(Object msg) {
+    msg = msg.toString();
     System.out.println(msg);
     // System.out.println("[OUTPUT " + time(false) + "] " + msg);
     write("[OUTPUT " + time(false) + "] " + msg);
   }
 
-  public void input(String msg) {
+  public void input(Object msg) {
+    msg = msg.toString();
     if (debug) {
       // System.out.println("[INPUT  " + time(false) + "] " + msg);
       write("[INPUT  " + time(false) + "] " + msg);
     }
   }
 
-  public void debug(String msg) {
+  public void debug(Object msg) {
+    msg = msg.toString();
     if (debug) {
-      System.out.println("[DEBUG " + time(false) + "] " + msg);
+      System.out.println("info [DEBUG " + time(false) + "] " + msg);
       write("[DEBUG  " + time(false) + "] " + msg);
     }
   }
 
-  public void info(String msg) {
+  public void info(Object msg) {
+    msg = msg.toString();
     if (debug) {
-      System.out.println("[INFO " + time(false) + "] " + msg);
+      System.out.println("info [INFO " + time(false) + "] " + msg);
       write("[INFO   " + time(false) + "] " + msg);
     }
   }
 
-  public void warning(String msg) {
+  public void warning(Object msg) {
+    msg = msg.toString();
     if (debug) {
-      System.out.println("[WARN " + time(false) + "] " + msg);
+      System.out.println("info [WARN " + time(false) + "] " + msg);
       write("[WARN   " + time(false) + "] " + msg);
     }
   }
 
-  public void fatal(String msg) {
+  public void fatal(Object msg) {
+    msg = msg.toString();
     if (debug) {
-      System.out.println("[ERROR " + time(false) + "] " + msg);
+      System.out.println("info [ERROR " + time(false) + "] " + msg);
       write("[ERROR  " + time(false) + "] " + msg);
     }
   }
@@ -155,7 +161,7 @@ public class Logger {
       try {
         writer.close();
         String fileName = time(true);
-        outFile = new File(outFolder, fileName);
+        outFile = new File(outFolder, fileName + ".log");
         outFile.createNewFile();
         writer = new FileWriter(outFile);
       } catch (IOException e) {

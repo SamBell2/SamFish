@@ -1,9 +1,9 @@
 package chess;
 
-import chess.logging.Logger;
 import chess.pieces.*;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 
 public class Board {
   Piece[][] board =
@@ -41,12 +41,15 @@ public class Board {
   String repr;
   ArrayList<String> moves = new ArrayList<String>();
   boolean printFormatting;
-  Logger logger;
   String FEN;
+  ArrayList<String> FENs;
+  public int fullMoves;
+  public int halfMoves;
 
-  public Board(boolean formatting, Logger prevLogger) {
+  public Board(boolean formatting) {
+    fullMoves = 0; halfMoves = 0;
     printFormatting = formatting;
-    logger = prevLogger;
+    FENs = new ArrayList<String>();
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 8; j++) {
         if (i == 0) {
@@ -80,6 +83,7 @@ public class Board {
         }
       }
     }
+    FENs.add(genFEN());
   }
 
   @Override
@@ -126,8 +130,10 @@ public class Board {
 
   public void move(String move) {
     if (move == null) return;
+    //if (getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()) != null && getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()).isWhite()) fullMoves ++;
     moves.add(move);
-    if (move.equals("e1g1") || move.equals("e1c1") || move.equals("e8g8") || move.equals("e8c8")) {
+    if ((move.equals("e1g1") || move.equals("e1c1") || move.equals("e8g8") || move.equals("e8c8")) && getPiece(((Character)move.charAt(0)).toString() + ((Character)move.charAt(1))).value() == 0) {
+      //Bot.logger.debug(((Character)move.charAt(0)).toString() + ((Character)move.charAt(1)));
       Piece king;
       Piece rook;
       switch (move) {
@@ -184,79 +190,14 @@ public class Board {
           break;
       }
     } else {
-      /*try {
-        Piece piece =
-            board[8 - ((int) move.charAt(1) - '0')][
-                Arrays.binarySearch(Main.columnLetters, "" + move.charAt(0))];
-        if (move.length() == 5) {
-          board[8 - ((int) move.charAt(1) - '0')][
-                  Arrays.binarySearch(Main.columnLetters, "" + move.charAt(0))] =
-              null;
-          switch (move.charAt(4)) {
-            case 'q':
-              board[8 - ((int) move.charAt(3) - '0')][
-                      Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] =
-                  new Queen((move.charAt(2) + "") + (move.charAt(3) + ""), piece.isWhite());
-              break;
-            case 'r':
-              board[8 - ((int) move.charAt(3) - '0')][
-                      Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] =
-                  new Rook((move.charAt(2) + "") + (move.charAt(3) + ""), piece.isWhite());
-              break;
-            case 'b':
-              board[8 - ((int) move.charAt(3) - '0')][
-                      Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] =
-                  new Bishop((move.charAt(2) + "") + (move.charAt(3) + ""), piece.isWhite());
-              break;
-            case 'n':
-              board[8 - ((int) move.charAt(3) - '0')][
-                      Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] =
-                  new Knight((move.charAt(2) + "") + (move.charAt(3) + ""), piece.isWhite());
-              break;
-            default:
-              board[8 - ((int) move.charAt(3) - '0')][
-                      Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] =
-                  new Pawn((move.charAt(2) + "") + (move.charAt(3) + ""), piece.isWhite());
-              break;
-          }
-          return;
-        }
-        piece.newPos((move.charAt(2) + "") + (move.charAt(3) + ""));
-        if (piece.value() == 1
-            && board[8 - ((int) move.charAt(3) - '0')][
-                    Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))]
-                == null
-            && move.charAt(0) != move.charAt(2)) {
-          // logger.debug("En passant");
-          String takePos = new String(new char[] {move.charAt(2), move.charAt(1)});
-          // logger.debug("En passant");
-          int[] takeIndex = posToIndex(takePos);
-          // logger.debug("En passant");
-          // logger.debug(Integer.toString(takeIndex[0]));
-          // logger.debug(Integer.toString(takeIndex[1]));
-          // logger.debug(takePos);
-          // logger.debug(Integer.toString(Arrays.binarySearch(Main.columnLetters,
-          // ""+takePos.charAt(0))));
-          board[takeIndex[0]][takeIndex[1]] = null;
-          // logger.debug("En passant");
-          return;
-        }
-        board[8 - ((int) move.charAt(3) - '0')][
-                Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] =
-            piece;
-        board[8 - ((int) move.charAt(1) - '0')][
-                Arrays.binarySearch(Main.columnLetters, "" + move.charAt(0))] =
-            null;
-      } catch (Exception e) {
-        logger.fatal("Would crash now");
-        logger.fatal(this.toString());
-        logger.fatal(move);
-        logger.fatal(e.toString());
-      } */
-      // /*
       Piece piece =
           board[8 - ((int) move.charAt(1) - '0')][
               Arrays.binarySearch(Main.columnLetters, "" + move.charAt(0))];
+      if (piece == null) return;
+        if (piece.value() == 1 || board[8 - ((int) move.charAt(3) - '0')][
+                Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] != null) {
+          halfMoves = 0;
+        } else halfMoves ++;
       if (move.length() == 5) {
         board[8 - ((int) move.charAt(1) - '0')][
                 Arrays.binarySearch(Main.columnLetters, "" + move.charAt(0))] =
@@ -288,6 +229,7 @@ public class Board {
                 new Pawn((move.charAt(2) + "") + (move.charAt(3) + ""), piece.isWhite());
             break;
         }
+        FENs.add(genFEN());
         return;
       }
       /*System.out.println(piece);
@@ -320,6 +262,7 @@ public class Board {
         // ""+takePos.charAt(0))));
         board[takeIndex[0]][takeIndex[1]] = null;
         // logger.debug("En passant");
+        FENs.add(genFEN());
         return;
       }
       board[8 - ((int) move.charAt(3) - '0')][
@@ -329,6 +272,7 @@ public class Board {
               Arrays.binarySearch(Main.columnLetters, "" + move.charAt(0))] =
           null; // */
     }
+    FENs.add(genFEN());
   }
 
   public Piece[][] getBoard() {
@@ -351,12 +295,15 @@ public class Board {
   }
 
   public Piece getPiece(String pos) {
+    // Bot.logger.info(pos);
     int[] index = posToIndex(pos);
+    //Bot.logger.info(index[0]);
+    //Bot.logger.info(index[1]);
     return board[index[0]][index[1]];
   }
 
   public Board newBoardWithmove(String move) {
-    Board newBoard = new Board(printFormatting, logger);
+    Board newBoard = new Board(printFormatting);
     if (FEN != null) {
       newBoard.getFEN(FEN);
     }
@@ -384,37 +331,17 @@ public class Board {
     return toReturn;
   }
 
-  public int whiteWon(boolean whitesTurn, boolean showReasons) {
-    if (moves.size() > 12
-        && ((moves.get(moves.size() - 1).equals(moves.get(moves.size() - 5)))
-            && (moves.get(moves.size() - 5).equals(moves.get(moves.size() - 9))))
-        && ((moves.get(moves.size() - 2).equals(moves.get(moves.size() - 6)))
-            && (moves.get(moves.size() - 6).equals(moves.get(moves.size() - 10))))
-        && ((moves.get(moves.size() - 3).equals(moves.get(moves.size() - 7)))
-            && (moves.get(moves.size() - 7).equals(moves.get(moves.size() - 11))))
-        && ((moves.get(moves.size() - 4).equals(moves.get(moves.size() - 8)))
-            && (moves.get(moves.size() - 8).equals(moves.get(moves.size() - 12))))) {
+  public int whiteWon(boolean whitesTurn, boolean showReasons) { // returns 0 (white won) 1(black won) -2(draw) -3(nearly draw) -1 (none)
+    if (threefold()) {
       return -2;
     }
-    if (moves.size() > 4
+    if (moves.size() > 8
         && (moves.get(moves.size() - 1).equals(moves.get(moves.size() - 5)))
         && (moves.get(moves.size() - 2).equals(moves.get(moves.size() - 6)))
         && (moves.get(moves.size() - 3).equals(moves.get(moves.size() - 7)))
         && (moves.get(moves.size() - 4).equals(moves.get(moves.size() - 8)))) {
       return -3;
     }
-    /*boolean whiteKing = false;
-    boolean blackKing = false;
-    for (int i = 0; i < 8; i++) {
-      for (int j = 0; j < 8; j++) {
-        if (board[i][j] == null) continue;
-        if (board[i][j].value() == 0 && board[i][j].isWhite()) whiteKing = true;
-        if (board[i][j].value() == 0 && !board[i][j].isWhite()) blackKing = true;
-      }
-    }
-    if (whiteKing && blackKing) return -1;
-    if (whiteKing) return 0;
-    if (blackKing) return 1;*/
     boolean escape = false;
     for (String move : nextPositions(whitesTurn, false)) {
       Board nextBoard = newBoardWithmove(move);
@@ -431,11 +358,13 @@ public class Board {
         }
       }
       if (!takenThisMove) {
-        if (showReasons) logger.info(move);
+        //if (showReasons) Bot.logger.info(move);
+        if (showReasons) System.out.println(move);
         escape = true;
       }
     }
-    if (showReasons) logger.info(escape ? "can escape" : "can't escape");
+    //if (showReasons) Bot.logger.info(escape ? "can escape" : "can't escape");
+    if (showReasons) System.out.println(escape ? "can escape" : "can't escape");
     boolean check = false;
     for (String move : nextPositions(!whitesTurn, false)) {
       try {
@@ -466,6 +395,10 @@ public class Board {
         return true;
       }
     }
+    return false;
+  }
+  public boolean threefold() {
+    if (Collections.frequency(FENs, genFEN()) >= 3) return true;
     return false;
   }
 
@@ -591,5 +524,17 @@ public class Board {
       }
     }
     return pieces;
+  }
+  public static boolean equivalent(Board b1, Board b2) {
+    for (int i = 0; i < 8; i ++) {
+      for (int j = 0; j < 8; j ++) {
+        Piece b1Piece = b1.getPiece(new int[]{i, j});
+        Piece b2Piece = b2.getPiece(new int[]{i, j});
+        if (b1Piece == null ^ b2Piece == null) return false;
+        if (b1Piece == null) continue;
+        if (b1Piece.getClass() != b2Piece.getClass() || b1Piece.isWhite() != b2Piece.isWhite()) return false;
+      }
+    }
+    return true;
   }
 }

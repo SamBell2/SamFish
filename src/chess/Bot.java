@@ -14,23 +14,26 @@ public class Bot {
   boolean debug;
   String input;
   boolean useFormatting;
-  Logger logger;
+  public static Logger logger;
   String loggerOutFile;
   boolean useUCI;
   public String lastMove;
+  boolean fast;
 
-  public Bot(boolean debugOn, boolean UCI, String outFile, boolean compress) {
+  public Bot(boolean debugOn, boolean UCI, String outFile, boolean compress, boolean fast) {
+    this.fast = fast;
     logger = new Logger(outFile, debugOn, compress);
     loggerOutFile = outFile;
     useFormatting = !UCI;
     useUCI = UCI;
-    evaluator = new Eval(logger, this);
+    evaluator = new Eval(this);
     if (UCI) {
-      frontend = new UCI(logger);
-      board = new Board(false, logger);
+      frontend = new UCI();
+      board = new Board(false);
     } else {
-      board = new Board(true, logger);
-      frontend = new Playable(logger, this);
+      board = new Board(true);
+      board.getFEN("8/8/8/8/8/3k4/8/BRK1r3");
+      frontend = new Playable(this);
     }
     whitesTurn = true;
     debug = debugOn;
@@ -43,7 +46,7 @@ public class Bot {
 
   public void reset(boolean newLogger) {
     if (newLogger) logger.newLog();
-    board = new Board(useFormatting, logger);
+    board = new Board(useFormatting);
     whitesTurn = true;
   }
 
@@ -62,14 +65,14 @@ public class Bot {
       logger.input(input);
       if (input.equals("quit") || input.equals("exit")) {
         logger.info(board.newBoardWithmove(lastMove).toString());
-        logger.info(lastMove);
+        if (lastMove != null) logger.info(lastMove);
         logger.info(
             Float.toString(evaluator.evaluate(board.newBoardWithmove(lastMove), whitesTurn)));
         logger.info(Integer.toString(board.newBoardWithmove(lastMove).whiteWon(!whitesTurn, true)));
         logger.close();
         break;
       }
-      if (frontend.run(board, evaluator, whitesTurn, this, input, debug)) {
+      if (frontend.run(board, evaluator, whitesTurn, this, input, debug, this.fast)) {
         break;
       }
     }

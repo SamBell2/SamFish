@@ -3,20 +3,17 @@ package chess.frontend;
 import chess.Board;
 import chess.Bot;
 import chess.eval.Eval;
-import chess.logging.Logger;
 
 public class Playable implements Frontend {
   String input;
   int depth;
   boolean moved;
   String move;
-  Logger logger;
 
-  public Playable(Logger prevLogger, Bot bot) {
-    logger = prevLogger;
-    logger.info("Playable frontend initialised.");
+  public Playable(Bot bot) {
+    Bot.logger.info("Playable frontend initialised.");
     System.out.print(" > ");
-    bot.move("a1a1");
+    //bot.move("a1a1");
   }
 
   public boolean run(
@@ -25,23 +22,24 @@ public class Playable implements Frontend {
       boolean whitesTurn,
       Bot bot,
       String move,
-      boolean debug) { // returns true for exit, false for continue
+      boolean debug,
+      boolean fast) { // returns true for exit, false for continue
     moved = false;
     bot.move(move);
-    move = evaluator.findMove(board, !whitesTurn, 2, null, bot, null);
+    move = evaluator.findMove(board, !whitesTurn, 2, null, bot, "/home/arco/syzygy", fast);
     bot.move(move);
-    logger.output(move);
+    Bot.logger.output(move);
 
-    logger.output(board.toString());
+    Bot.logger.output(board.toString());
 
     if (board.whiteWon(whitesTurn, false) == 0) {
-      logger.output("White won!");
+      Bot.logger.output("White won!");
       return true;
     } else if (board.whiteWon(whitesTurn, false) == 1) {
-      logger.output("Black won!");
+      Bot.logger.output("Black won!");
       return true;
     } else if (board.whiteWon(whitesTurn, false) == -2) {
-      logger.output("Draw!");
+      Bot.logger.output("Draw!");
       return true;
     }
     System.out.print(" > ");
