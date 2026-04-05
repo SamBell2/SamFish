@@ -19,7 +19,6 @@ public class Pawn implements Piece {
       if (index[0] == 0) return new String[0];
       index[0]--;
       if (oldBoard.getPiece(index) == null) {
-        moves.add(square + oldBoard.indexToPos(index));
         if (square.charAt(1) == '2') {
           index[0]--;
           if (oldBoard.getPiece(index) == null) moves.add(square + oldBoard.indexToPos(index));
@@ -29,6 +28,8 @@ public class Pawn implements Piece {
           moves.add(square + oldBoard.indexToPos(index) + "r");
           moves.add(square + oldBoard.indexToPos(index) + "b");
           moves.add(square + oldBoard.indexToPos(index) + "n");
+        } else {
+          moves.add(square + oldBoard.indexToPos(index));
         }
       }
       index = oldBoard.posToIndex(square);
@@ -36,13 +37,12 @@ public class Pawn implements Piece {
       if (index[1] != 7) {
         index[1]++;
         if (oldBoard.getPiece(index) != null && !(oldBoard.getPiece(index).isWhite())) {
-          moves.add(square + oldBoard.indexToPos(index));
           if (index[0] == 0) {
             moves.add(square + oldBoard.indexToPos(index) + "q");
             moves.add(square + oldBoard.indexToPos(index) + "r");
             moves.add(square + oldBoard.indexToPos(index) + "b");
             moves.add(square + oldBoard.indexToPos(index) + "n");
-          }
+          } else moves.add(square + oldBoard.indexToPos(index));
         }
       }
       index = oldBoard.posToIndex(square);
@@ -50,20 +50,18 @@ public class Pawn implements Piece {
       if (index[1] != 0) {
         index[1]--;
         if (oldBoard.getPiece(index) != null && !(oldBoard.getPiece(index).isWhite())) {
-          moves.add(square + oldBoard.indexToPos(index));
           if (index[0] == 0) {
             moves.add(square + oldBoard.indexToPos(index) + "q");
             moves.add(square + oldBoard.indexToPos(index) + "r");
             moves.add(square + oldBoard.indexToPos(index) + "b");
             moves.add(square + oldBoard.indexToPos(index) + "n");
-          }
+          } else moves.add(square + oldBoard.indexToPos(index));
         }
       }
     } else {
       if (index[0] == 7) return new String[0];
       index[0]++;
       if (oldBoard.getPiece(index) == null) {
-        moves.add(square + oldBoard.indexToPos(index));
         if (square.charAt(1) == '7') {
           index[0]++;
           if (oldBoard.getPiece(index) == null) moves.add(square + oldBoard.indexToPos(index));
@@ -73,20 +71,19 @@ public class Pawn implements Piece {
           moves.add(square + oldBoard.indexToPos(index) + "r");
           moves.add(square + oldBoard.indexToPos(index) + "b");
           moves.add(square + oldBoard.indexToPos(index) + "n");
-        }
+        } else moves.add(square + oldBoard.indexToPos(index));
       }
       index = oldBoard.posToIndex(square);
       index[0]++;
       if (index[1] != 7) {
         index[1]++;
         if (oldBoard.getPiece(index) != null && (oldBoard.getPiece(index).isWhite())) {
-          moves.add(square + oldBoard.indexToPos(index));
-          if (index[0] == 8) {
+          if (index[0] == 7) {
             moves.add(square + oldBoard.indexToPos(index) + "q");
             moves.add(square + oldBoard.indexToPos(index) + "r");
             moves.add(square + oldBoard.indexToPos(index) + "b");
             moves.add(square + oldBoard.indexToPos(index) + "n");
-          }
+          } else moves.add(square + oldBoard.indexToPos(index));
         }
       }
       index = oldBoard.posToIndex(square);
@@ -94,13 +91,12 @@ public class Pawn implements Piece {
       if (index[1] != 0) {
         index[1]--;
         if (oldBoard.getPiece(index) != null && (oldBoard.getPiece(index).isWhite())) {
-          moves.add(square + oldBoard.indexToPos(index));
-          if (index[0] == 8) {
+          if (index[0] == 7) {
             moves.add(square + oldBoard.indexToPos(index) + "q");
             moves.add(square + oldBoard.indexToPos(index) + "r");
             moves.add(square + oldBoard.indexToPos(index) + "b");
             moves.add(square + oldBoard.indexToPos(index) + "n");
-          }
+          } else moves.add(square + oldBoard.indexToPos(index));
         }
       }
     }

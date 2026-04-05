@@ -12,6 +12,8 @@ public class Eval {
   class BoardWithEval {
     Board board;
     float eval;
+    String firstMove;
+    boolean whiteJustMoved;
   }
   Bot bot;
   Syzygy syzygyCalculator = new Syzygy();
@@ -84,15 +86,40 @@ public class Eval {
     return moves[maxIndex];
   }
 
-  public ArrayList<HashMap<String, BoardWithEval>> findPositions(
+  public ArrayList<BoardWithEval> findPositions(
       Board board, boolean white, Integer depth, Integer time, Long finTime, String firstMove) {
     long millis = System.currentTimeMillis();
-    ArrayList<HashMap<String, BoardWithEval>> positions = new ArrayList<HashMap<String, BoardWithEval>>();
+    ArrayList<BoardWithEval> positions = new ArrayList<BoardWithEval>();
     String[] nextMoves = board.nextPositions(white, false);
     String[] bestMoves = new String[5];
     float[] bestPoints = new float[] {-100000, -100000, -100000, -100000, -100000};
     ArrayList<String> skipped = new ArrayList<String>();
     for (String move : nextMoves) {
+      BoardWithEval p = new BoardWithEval();
+      Board b = board.newBoardWithmove(move);
+      if (b.check(white)) continue;
+      p.board = b;
+      p.eval = evaluate(b, white);
+      p.firstMove = move;
+      p.whiteJustMoved = white;
+      positions.add(p);
+    }
+    int i = 0;
+    while (System.currentTimeMillis() < finTime) {
+      BoardWithEval b = positions.get(i);
+      nextMoves = b.board.nextPositions(!b.whiteJustMoved, false);
+      for (String move : nextMoves) {
+        BoardWithEval p = new BoardWithEval();
+        Board x = b.board.newBoardWithmove(move);
+        if (x.check(!b.whiteJustMoved)) continue;
+        p.board = x;
+        p.eval = evaluate(x, !b.whiteJustMoved);
+        p.firstMove = b.firstMove;
+        p.whiteJustMoved = !b.whiteJustMoved;
+        positions.add(p);
+      }
+    }
+    /*for (String move : nextMoves) {
       if (bot.stopSearch()) {
         Bot.logger.info("stopping");
         continue;
@@ -163,7 +190,7 @@ public class Eval {
         bestMoves[4] = move;
         bestPoints[4] = eval;
       }
-    }
+    }*/
     for (String move : bestMoves) {
       if (skipped.contains(move)) {
         Bot.logger.warning("Failed to skip " + move);
@@ -177,7 +204,7 @@ public class Eval {
     String[] cleanBestMoves = bestMoves;
     if (count != bestMoves.length) {
       cleanBestMoves = new String[count];
-      int i = 0;
+      i = 0;
       for (String s : bestMoves) {
         if (s != null) cleanBestMoves[i++] = s;
       }
@@ -185,11 +212,10 @@ public class Eval {
     for (String move : cleanBestMoves) {
       Board pos = board.newBoardWithmove(move);
       if (depth != null && depth == 1) {
-        HashMap<String, BoardWithEval> toAdd = new HashMap<String, BoardWithEval>();
         BoardWithEval p = new BoardWithEval();
         p.board = pos; p.eval = evaluate(board, white);
-        toAdd.put(firstMove, p);
-        positions.add(toAdd);
+        p.firstMove = firstMove;
+        positions.add(p);
         continue;
       }
       if (depth != null) {
@@ -197,15 +223,12 @@ public class Eval {
       } else {
         long timeElapsed = System.currentTimeMillis() - millis;
         if ((time - timeElapsed <= 10) || System.currentTimeMillis() >= finTime) {
-          HashMap<String, BoardWithEval> toAdd = new HashMap<String, BoardWithEval>();
           BoardWithEval p = new BoardWithEval();
           p.board = pos; p.eval = evaluate(board, white);
-          toAdd.put(firstMove, p);
-          positions.add(toAdd);
+          p.firstMove = firstMove;
+          positions.add(p);
           continue;
         }
-        positions.addAll(
-            findPositions(pos, !white, null, (int) (time - timeElapsed) / 5, finTime, firstMove));
       }
     }
     return positions;
@@ -232,73 +255,30 @@ public class Eval {
     }
     Bot.logger.info("Calculating...");
     // System.out.println(board);
-    ArrayList<HashMap<String, BoardWithEval>> positions = new ArrayList<HashMap<String, BoardWithEval>>();
-    String[] nextMoves;
+    ArrayList<BoardWithEval> positions = new ArrayList<BoardWithEval>();
     if (depth != null) {
-      nextMoves = board.nextPositions(white, false);
-      for (String move : nextMoves) {
-        Board pos = board.newBoardWithmove(move);
-        int whiteWon = pos.whiteWon(!white, false);
-        if ((whiteWon == 1 && !white) || (whiteWon == 0 && white)) return move;
-        if (whiteWon == -2) {
-          HashMap<String, BoardWithEval> map = new HashMap<String, BoardWithEval>();
-          BoardWithEval p = new BoardWithEval();
-          p.board = pos;
-          p.eval = evaluate(board, white);
-          map.put(move, p);
-          positions.add(map);
-          continue;
-        }
-        if (pos.check(white)) {
-          Bot.logger.info("move " + move + " results in check.");
-          continue;
-        }
-        if (move == null) continue;
-        positions.addAll(findPositions(pos, !white, depth * 2 - 1, null, null, move));
-      }
+      positions.addAll(findPositions(board, white, depth * 2 - 1, null, null, ""));
     } else {
-      nextMoves = board.nextPositions(white, false);
-      for (String move : nextMoves) {
-        Board pos = board.newBoardWithmove(move);
-        int whiteWon = pos.whiteWon(!white, false);
-        if ((whiteWon == 1 && !white) || (whiteWon == 0 && white)) return move;
-        if (whiteWon == -2) {
-          HashMap<String, BoardWithEval> map = new HashMap<String, BoardWithEval>();
-          BoardWithEval p = new BoardWithEval();
-          p.board = pos;
-          p.eval = evaluate(board, white);
-          map.put(move, p);
-          positions.add(map);
-          continue;
-        }
-        if (pos.check(white)) {
-          Bot.logger.info("move " + move + " results in check.");
-          continue;
-        }
-        if (move == null) continue;
-        positions.addAll(
+      positions.addAll(
             findPositions(
-                pos,
-                !white,
+                board,
+                white,
                 null,
-                (time - 100) / nextMoves.length,
+                (time - 100),
                 System.currentTimeMillis() + time - 1000,
-                move));
-      }
+                ""));
     }
     Bot.logger.info("found moves");
     HashMap<String, ArrayList<BoardWithEval>> groupedPositions = new HashMap<String, ArrayList<BoardWithEval>>();
-    for (HashMap<String, BoardWithEval> map : positions) {
-      for (Map.Entry<String, BoardWithEval> entry : map.entrySet()) {
-        String key = entry.getKey();
-        BoardWithEval newBoard = entry.getValue();
-
-        groupedPositions.computeIfAbsent(key, _ -> new ArrayList<>()).add(newBoard);
+    for (BoardWithEval map : positions) {
+      String key = map.firstMove;
+      if (key != null) {
+        groupedPositions.computeIfAbsent(key, _ -> new ArrayList<>()).add(map);
       }
     }
     Bot.logger.info("grouped moves");
     /*for (String move : groupedPositions.keySet()) {
-      logger.info("found move " + move + "(" + Integer.toString((int)evaluate(board.newBoardWithmove(move), white)) + ")");
+      Bot.logger.info("found move " + move + "(" + Integer.toString((int)evaluate(board.newBoardWithmove(move), white)) + ")");
     }*/
     // Now find best
     HashMap<String, Integer> movesWithPoints = new HashMap<String, Integer>();

@@ -127,6 +127,7 @@ public class Syzygy {
         return false;
     }
     public void newPath(String path) {
+        Bot.logger.debug(path);
         tables = new File(path);
     }
     public String bestmove(boolean white) {
@@ -215,9 +216,13 @@ public class Syzygy {
         for (File file : files) {
             if (file.getName().length() > maxLength) {
                 maxLength = file.getName().length();
+                Bot.logger.info(maxLength);
+                Bot.logger.info(file.getName());
                 size = maxLength - 6;
             }
         }
+        Bot.logger.info("Siz");
+        Bot.logger.info(size);
         return size;
     }
 }
