@@ -4,6 +4,7 @@ import chess.pieces.*;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 
 public class Board {
   Piece[][] board =
@@ -39,7 +40,8 @@ public class Board {
           a   b   c   d   e   f   g   h\
       """;
   String repr;
-  ArrayList<String> moves = new ArrayList<String>();
+  public ArrayList<String> moves = new ArrayList<String>();
+  public HashMap<String,Integer> numMoves = new HashMap<String, Integer>();
   boolean printFormatting;
   String FEN;
   ArrayList<String> FENs;
@@ -132,6 +134,11 @@ public class Board {
     if (move == null) return;
     //if (getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()) != null && getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()).isWhite()) fullMoves ++;
     moves.add(move);
+    if (numMoves.containsKey(move)) {
+      numMoves.put(move, numMoves.get(move)+1);
+    } else {
+      numMoves.put(move, 1);
+    }
     if ((move.equals("e1g1") || move.equals("e1c1") || move.equals("e8g8") || move.equals("e8c8")) && getPiece(((Character)move.charAt(0)).toString() + ((Character)move.charAt(1))).value() == 0) {
       //Bot.logger.debug(((Character)move.charAt(0)).toString() + ((Character)move.charAt(1)));
       Piece king;
@@ -277,6 +284,16 @@ public class Board {
 
   public Piece[][] getBoard() {
     return board;
+  }
+
+  public ArrayList<Piece> getPieces(boolean whitePiecesOnly) {
+    ArrayList<Piece> pieces = new ArrayList<Piece>();
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        if (this.board[i][j] != null && this.board[i][j].isWhite() == whitePiecesOnly) pieces.add(this.board[i][j]);
+      }
+    }
+    return pieces;
   }
 
   public int[] posToIndex(String pos) {

@@ -22,6 +22,7 @@ public class Pawn implements Piece {
         if (square.charAt(1) == '2') {
           index[0]--;
           if (oldBoard.getPiece(index) == null) moves.add(square + oldBoard.indexToPos(index));
+          index[0]++;
         }
         if (index[0] == 0) {
           moves.add(square + oldBoard.indexToPos(index) + "q");
@@ -65,6 +66,7 @@ public class Pawn implements Piece {
         if (square.charAt(1) == '7') {
           index[0]++;
           if (oldBoard.getPiece(index) == null) moves.add(square + oldBoard.indexToPos(index));
+          index[0]--;
         }
         if (index[0] == 7) {
           moves.add(square + oldBoard.indexToPos(index) + "q");
