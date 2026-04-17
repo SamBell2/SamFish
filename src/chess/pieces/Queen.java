@@ -149,10 +149,28 @@ public class Queen implements Piece {
   }
 
   public int value() {
-    return 10;
+    return 9;
   }
 
   public String getSquare() {
     return square;
+  }
+
+  public float[][] pieceSquareScore() {
+    return new float[][] {
+      {2, 0, 0, 0, 0, 0, 0, 2},
+      {0, 2, 0, 0, 0, 0, 2, 0},
+      {0, 0, 2, 0, 0, 2, 0, 0},
+      {0, 0, 0, 3, 3, 0, 0, 0},
+      {0, 0, 0, 3, 3, 0, 0, 0},
+      {0, 0, 2, 0, 0, 2, 0, 0},
+      {0, 2, 0, 0, 0, 0, 2, 0},
+      {2, 0, 0, 0, 0, 0, 0, 2}
+    };
+  }
+
+  public Piece copy() {
+    Piece newPiece = new Queen(square, white);
+    return newPiece;
   }
 }

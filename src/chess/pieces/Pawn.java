@@ -131,4 +131,22 @@ public class Pawn implements Piece {
   public String getSquare() {
     return square;
   }
+
+  public float[][] pieceSquareScore() {
+    return new float[][] {
+      {0,    0,    0,    0,    0,    0,    0,    0   },
+      {2,    2.5f, 2.5f, 2.5f, 2.5f, 2.5f, 2.5f, 2.5f},
+      {1.5f, 2,    2,    2,    2,    2,    2,    2   },
+      {1,    1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f},
+      {0.5f, 1,    1,    1,    1,    1,    1,    1   },
+      {0,    0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f, 0.5f},
+      {-1,   0,    0,    0,    0,    0,    0,    0   },
+      {0,    0,    0,    0,    0,    0,    0,    0   }
+    };
+  }
+
+  public Piece copy() {
+    Piece newPiece = new Pawn(square, white);
+    return newPiece;
+  }
 }

@@ -32,7 +32,7 @@ public class Bot {
       board = new Board(false);
     } else {
       board = new Board(true);
-      board.getFEN("8/8/8/8/8/3k4/8/BRK1r3");
+      //board.getFEN("8/8/8/8/8/3k4/8/BRK1r3");
       frontend = new Playable(this);
     }
     whitesTurn = true;
@@ -60,14 +60,11 @@ public class Bot {
                 }));
     // System.err.println("can output");
     while (scanner.hasNextLine()) {
-      System.out.println();
       input = scanner.nextLine();
       logger.input(input);
       if (input.equals("quit") || input.equals("exit")) {
         logger.info(board.newBoardWithmove(lastMove).toString());
         if (lastMove != null) logger.info(lastMove);
-        logger.info(
-            Float.toString(evaluator.evaluate(board.newBoardWithmove(lastMove), whitesTurn)));
         logger.info(Integer.toString(board.newBoardWithmove(lastMove).whiteWon(!whitesTurn, true)));
         logger.close();
         break;

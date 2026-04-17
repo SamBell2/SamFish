@@ -80,7 +80,7 @@ public class UCI implements Frontend {
                               board,
                               whitesTurn,
                               null,
-                              Integer.parseInt(parts[6]),
+                              Integer.parseInt(parts[6])+3000,
                               bot, syzygyPath,
                               fast);
                     } else {
@@ -89,7 +89,7 @@ public class UCI implements Frontend {
                               board,
                               whitesTurn,
                               null,
-                              Integer.parseInt(parts[8]),
+                              Integer.parseInt(parts[8])+3000,
                               bot, syzygyPath,
                               fast);
                     }
@@ -118,6 +118,15 @@ public class UCI implements Frontend {
                   // System.out.println(board);
                   bestmove =
                       evaluator.findMove(board, whitesTurn, Integer.parseInt(parts[2]), null, bot, syzygyPath, fast);
+                } else if (parts[1].equals("infinite")) {
+                  bestmove =
+                          evaluator.findMove(
+                              board,
+                              whitesTurn,
+                              null,
+                              Integer.MAX_VALUE,
+                              bot, syzygyPath,
+                              fast);
                 }
                 Bot.logger.output("bestmove " + bestmove);
               });
@@ -161,7 +170,6 @@ public class UCI implements Frontend {
         syzygyPath = parts[4];
       }
     }
-    System.out.println("");
     System.out.flush();
     return false;
   }

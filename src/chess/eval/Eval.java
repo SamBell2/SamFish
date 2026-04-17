@@ -5,10 +5,8 @@ import chess.Bot;
 import chess.pieces.*;
 import chess.syzygy.Syzygy;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.List;
+
+import javax.naming.TimeLimitExceededException;
 
 public class Eval {
   class BoardWithEval {
@@ -17,6 +15,10 @@ public class Eval {
     String firstMove;
     boolean whiteJustMoved;
   }
+  class MoveWithPoints {
+    String move;
+    float eval;
+  }
   Bot bot;
   Syzygy syzygyCalculator = new Syzygy();
 
@@ -24,63 +26,53 @@ public class Eval {
     this.bot = bot;
   }
 
-  public float evaluate(Board board, boolean white /*boolean showReasons */) {
+  public float evaluate(Board board, boolean evalForWhite, boolean whitesTurnNext, boolean showReasons ) {
     float points = 0;
-    int whiteWon = board.whiteWon(!white, false);
-    if (white && whiteWon == 0) points += 50000;
-    if (!white && whiteWon == 1) points += 50000;
-    if (white && whiteWon == 1) points -= 50000;
-    if (!white && whiteWon == 0) points -= 50000;
-    if (whiteWon == -2) points -= 30;
-    if (whiteWon == -3) points -= 10;
-    if (points < -20) return points;
+
+    // Checkmates, stalemates & threefold
+    int whiteWon = board.whiteWon(!whitesTurnNext, false);
+    if (evalForWhite && whiteWon == 0) points += 50000; // Our checkmate as white
+    if (!evalForWhite && whiteWon == 1) points += 50000; // Our checkmate as black
+    if (evalForWhite && whiteWon == 1) points -= 50000; // Enemy checkmate; we are white
+    if (!evalForWhite && whiteWon == 0) points -= 50000; // Enemy checkmate; we are black
+    if (whiteWon == -2) points -= 100; // Draw
+    if (whiteWon == -3) points -= 80; // Nearly draw (opponent could get threefold repetition)
+    if (showReasons) Bot.logger.debug("points from termination:" + Float.toString(points));
+    if (points < -80) return points; // Return if game ends; position doesn't matter
+
+    // Prevent move repetition
     if (!board.moves.isEmpty()) {
       String lastMove = board.moves.getLast();
-      //Bot.logger.debug("Last move was " + lastMove);
       int count = board.numMoves.get(lastMove);
-      //Bot.logger.debug(count);
       points -= 5 * count;
     }
+    if (showReasons) Bot.logger.debug("points from repetition:" + Float.toString(points));
+
+    // Per-piece points
     for (int i = 0; i < 8; i++) {
       for (int j = 0; j < 8; j++) {
         Piece piece = board.getPiece(new int[] {i, j});
         if (piece != null) {
-          if (piece.isWhite() == white) { // Get piece points
-            points += piece.value() * 2;
-            if (piece.value() == 1) { // Push pawns
-              if (white) {
-                int rank = (int) piece.getSquare().charAt(1) - '0';
-                points += rank/1.5;
-              } else {
-                int rank = (int) piece.getSquare().charAt(1) - '0';
-                rank = 8 - rank;
-                points += rank/1.5;
-              }
-            } else { // Take pieces off starting squares
-              if (white) {
-                if (piece.getSquare().charAt(1) != '1') {
-                  points += 2;
-                }
-              } else {
-                if (piece.getSquare().charAt(1) != '8') {
-                  points += 2;
-                }
-              }
-            }
-            if (((i == 3) || (i == 4)) && ((j == 3) || (j == 4))) { // Check for centre pieces
-              points += piece.value();
-            }
-            if ((j == 0) || (j == 7)) { // Check for edge pieces
-              points -= piece.value();
-            }
-          } else { // Lower poitns for opponent pieces
-            points -= piece.value() * 2;
+          if (piece.isWhite() == evalForWhite) {
+            points += piece.value(); // Get points for piece value
+            // Get points from PSQT
+            if (piece.isWhite()) points += piece.pieceSquareScore()[i][j];
+            else points += piece.pieceSquareScore()[7-i][7-j];
+
+          } else {
+            points -= piece.value(); // Get points for piece value
+            // Get points from PSQT
+            if (piece.isWhite()) points -= piece.pieceSquareScore()[i][j];
+            else points -= piece.pieceSquareScore()[7-i][7-j];
           }
         }
       }
     }
-    String[] oppNextMoves = board.nextPositions(!white, false);
-    ArrayList<Piece> pieces = board.getPieces(white);
+    if (showReasons) Bot.logger.debug("points from material & PSQTs:" + Float.toString(points));
+
+    // Prevent hanging pieces
+    String[] oppNextMoves = board.nextPositions(whitesTurnNext, false);
+    ArrayList<Piece> pieces = board.getPieces(evalForWhite);
     for (String move : oppNextMoves) {
       if (move == null) continue;
       for (Piece piece : pieces) {
@@ -90,112 +82,67 @@ public class Eval {
         }
       }
     }
+    if (showReasons) Bot.logger.debug("points from hanging:" + Float.toString(points));
+
+    // Checks
+    if (board.check(evalForWhite, whitesTurnNext)) points -= 3;
+    else if (board.check(!evalForWhite, whitesTurnNext)) points += 3;
+    if (showReasons) Bot.logger.debug("points from checks:" + Float.toString(points));
+
+    if (showReasons) Bot.logger.debug("points total:" + Float.toString(points));
     return points;
   }
 
-  public String pickMove(Board board, String[] moves, boolean white) {
-    float[] points = new float[moves.length];
-    int maxIndex = 0;
-    float currentMax = -10000000;
-    for (int i = 0; i < moves.length; i++) {
-      points[i] = evaluate(board.newBoardWithmove(moves[i]), white);
-      if (points[i] > currentMax) {
-        maxIndex = i;
-        currentMax = points[i];
-      }
-    }
-    return moves[maxIndex];
-  }
-
-  public ArrayList<BoardWithEval> findPositions(
-      Board board, boolean white, Integer depth, Integer time, Long finTime, String firstMove) {
-    long millis = System.currentTimeMillis();
-    ArrayList<BoardWithEval> positions = new ArrayList<BoardWithEval>();
-    String[] nextMoves = board.nextPositions(white, false);
-    String[] bestMoves = new String[5];
-    ArrayList<String> skipped = new ArrayList<String>();
-    for (String move : nextMoves) {
-      BoardWithEval p = new BoardWithEval();
-      Board b = board.newBoardWithmove(move);
-      if (b.check(white)) continue;
-      p.board = b;
-      p.eval = evaluate(b, white);
-      p.firstMove = move;
-      p.whiteJustMoved = white;
-      positions.add(p);
-    }
-    int i = 0;
-    Float[] scores;
-    List<Float> scoreList;
-    int index;
-    while (System.currentTimeMillis() < finTime) {
-      BoardWithEval b = positions.get(i);
-      nextMoves = b.board.nextPositions(!b.whiteJustMoved, false);
-      scores = new Float[nextMoves.length];
-      for (int j = 0; j < nextMoves.length; j++) scores[j] = evaluate(b.board.newBoardWithmove(nextMoves[j]), !b.whiteJustMoved);
-      scoreList = new ArrayList<>(Arrays.asList(scores));
-      for (int j = 0; j < 5; j++) {
-        index = scoreList.indexOf(Collections.max(scoreList));
-        String move = nextMoves[index];
-        BoardWithEval p = new BoardWithEval();
-        Board x = b.board.newBoardWithmove(move);
-        if (x.check(!b.whiteJustMoved)) continue;
-        p.board = x;
-        p.eval = evaluate(x, !b.whiteJustMoved);
-        p.firstMove = b.firstMove;
-        p.whiteJustMoved = !b.whiteJustMoved;
-        positions.add(p);
-        scoreList.set(index, scoreList.get(index)-5000000f);
-      }
-    }
-    for (String move : bestMoves) {
-      if (skipped.contains(move)) {
-        Bot.logger.warning("Failed to skip " + move);
-      }
-    }
-    int count = 0;
-    for (String s : bestMoves) {
-      if (s != null) count++;
+  MoveWithPoints minimax(Board board, int depth, boolean maximizingPlayer, boolean whiteTurnNext, boolean evalForWhite, long endTime, float alpha, float beta) throws TimeLimitExceededException {
+    if (depth == 0) {
+      MoveWithPoints x = new MoveWithPoints();
+      x.eval = evaluate(board, evalForWhite, whiteTurnNext, false);
+      return x;
     }
 
-    String[] cleanBestMoves = bestMoves;
-    if (count != bestMoves.length) {
-      cleanBestMoves = new String[count];
-      i = 0;
-      for (String s : bestMoves) {
-        if (s != null) cleanBestMoves[i++] = s;
-      }
-    }
-    for (String move : cleanBestMoves) {
-      Board pos = board.newBoardWithmove(move);
-      if (depth != null && depth == 1) {
-        BoardWithEval p = new BoardWithEval();
-        p.board = pos; p.eval = evaluate(board, white);
-        p.firstMove = firstMove;
-        positions.add(p);
-        continue;
-      }
-      if (depth != null) {
-        positions.addAll(findPositions(pos, !white, depth - 1, null, null, firstMove));
-      } else {
-        long timeElapsed = System.currentTimeMillis() - millis;
-        if ((time - timeElapsed <= 10) || System.currentTimeMillis() >= finTime) {
-          BoardWithEval p = new BoardWithEval();
-          p.board = pos; p.eval = evaluate(board, white);
-          p.firstMove = firstMove;
-          positions.add(p);
-          continue;
+    String[] moves = board.nextPositions(whiteTurnNext, false);
+
+    if (maximizingPlayer) {
+        MoveWithPoints max = new MoveWithPoints();
+        max.eval = -Float.MAX_VALUE;
+        //Bot.logger.info(moves.length);
+        for (String move : moves) {
+          if (move == null) continue;
+          if (board.newBoardWithmove(move).check(evalForWhite, !whiteTurnNext)) continue;
+          if (System.currentTimeMillis() > endTime) throw new TimeLimitExceededException();
+          MoveWithPoints x = minimax(board.newBoardWithmove(move), depth - 1, false, !whiteTurnNext, evalForWhite, endTime, alpha, beta);
+          if (x.eval > max.eval) {
+            //Bot.logger.info(move);
+            max.eval = x.eval;
+            max.move = move;
+          }
+          alpha = Math.max(alpha, max.eval);
+          if (alpha >= beta) break;
         }
-      }
+        return max;
+    } else {
+        MoveWithPoints min = new MoveWithPoints();
+        min.eval = Float.MAX_VALUE;
+        for (String move : moves) {
+          if (board.newBoardWithmove(move).check(!evalForWhite, !whiteTurnNext)) continue;
+          if (System.currentTimeMillis() > endTime) throw new TimeLimitExceededException();
+            MoveWithPoints x = minimax(board.newBoardWithmove(move), depth - 1, true, !whiteTurnNext, evalForWhite, endTime, alpha, beta);
+            if (x.eval < min.eval) {
+              min.eval = x.eval;
+              min.move = move;
+            }
+            beta = Math.min(beta, min.eval);
+            if (alpha >= beta) break;
+        }
+        return min;
     }
-    return positions;
   }
 
   public String findMove(Board board, boolean white, Integer depth, Integer time, Bot bot, String syzygyPath, boolean firstMove) {
     if (firstMove) {
       String[] nextMoves = board.nextPositions(white, false);
       for (String move: nextMoves) {
-        if (!board.check(white)) {
+        if (!board.check(white, white)) {
           return move;
         }
       }
@@ -210,55 +157,38 @@ public class Eval {
         Bot.logger.debug("not using syzygy");
       }
     }
-    Bot.logger.info("Calculating...");
-    // System.out.println(board);
-    ArrayList<BoardWithEval> positions = new ArrayList<BoardWithEval>();
     if (depth != null) {
-      positions.addAll(findPositions(board, white, depth * 2 - 1, null, null, ""));
+      try {
+        return minimax(board, depth, true, white, white, Long.MAX_VALUE, -Float.MAX_VALUE, Float.MAX_VALUE).move;
+      } catch (TimeLimitExceededException e) {
+        return null;
+      }
     } else {
-      positions.addAll(
-            findPositions(
-                board,
-                white,
-                null,
-                (time - 100),
-                System.currentTimeMillis() + time - 1000,
-                ""));
-    }
-    Bot.logger.info("found moves");
-    HashMap<String, ArrayList<BoardWithEval>> groupedPositions = new HashMap<String, ArrayList<BoardWithEval>>();
-    for (BoardWithEval map : positions) {
-      String key = map.firstMove;
-      if (key != null) {
-        groupedPositions.computeIfAbsent(key, _ -> new ArrayList<>()).add(map);
+      Bot.logger.info("Time based");
+      long endTime = System.currentTimeMillis()+time-1000;
+      MoveWithPoints best = new MoveWithPoints();
+      try {
+        best = minimax(board, 1, true, white, white, Long.MAX_VALUE, -Float.MAX_VALUE, Float.MAX_VALUE);
+      } catch (TimeLimitExceededException e) {
+        Bot.logger.info("Error in timelimit");
       }
-    }
-    Bot.logger.info("grouped moves");
-    for (String move : groupedPositions.keySet()) {
-      Bot.logger.info("found move " + move + "(" + Integer.toString((int)evaluate(board.newBoardWithmove(move), white)) + ")");
-    }
-    // Now find best
-    HashMap<String, Integer> movesWithPoints = new HashMap<String, Integer>();
-    for (String move : groupedPositions.keySet()) {
-      int total = 0;
-      for (BoardWithEval newBoard : groupedPositions.get(move)) {
-        total += newBoard.eval;
+      MoveWithPoints x;
+      //best.eval = -Float.MAX_VALUE;
+      // Bot.logger.info(best.move);
+      for (depth = 2; System.currentTimeMillis() < endTime; depth++) {
+        //Bot.logger.info("depth " + Integer.toString(depth));
+        try {
+          x = minimax(board, depth, true, white, white, endTime, -Float.MAX_VALUE, Float.MAX_VALUE);
+          if (x.eval > best.eval) best = x;
+        } catch (TimeLimitExceededException e) {
+          Bot.logger.info("Time limit exceeded");
+          break;
+        }
       }
-      movesWithPoints.put(move, total / groupedPositions.get(move).size());
+      Bot.logger.info("score cp " + Integer.toString((int)best.eval*100) + " depth " + Integer.toString(depth-1));
+      Bot.logger.debug(board.newBoardWithmove(best.move).check(white, !white));
+      evaluate(board.newBoardWithmove(best.move), white, white, true);
+      return best.move;
     }
-    Bot.logger.info("got points for moves");
-    String bestMove = "a1a1";
-    int currentMax = -1000000000;
-    for (String move : movesWithPoints.keySet()) {
-      // logger.info
-      if (movesWithPoints.get(move) > currentMax) {
-        bestMove = move;
-        currentMax = movesWithPoints.get(move);
-      }
-    }
-    Bot.logger.info("picked move");
-    bot.lastMove = bestMove;
-    Bot.logger.info("Move " + bestMove + " is " + Integer.toString(currentMax) + " points.");
-    return bestMove;
   }
 }

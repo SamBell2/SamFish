@@ -140,6 +140,8 @@ public class Syzygy {
         moves.put(1, new ArrayList<String>());
         moves.put(2, new ArrayList<String>());
         for (String move : board.nextPositions(white, false)) {
+            Board newBoard = board.newBoardWithmove(move);
+            if (newBoard.check(white, !white)) continue;
             //Bot.logger.info(WDLProbe.probe(board.newBoardWithmove(move).genFEN(), white));
             /* if (WDLProbe.probe(board.newBoardWithmove(move).genFEN(), white) >= currentMax) {
                 posibleMoves.add(move);
@@ -147,17 +149,17 @@ public class Syzygy {
                 currentMax = WDLProbe.probe(board.newBoardWithmove(move).genFEN(), white);
             } */
            if (move == null) continue;
-           if (board.newBoardWithmove(move).check(white)) continue;
-           if (board.newBoardWithmove(move).whiteWon(!white, false) == 0 && white) return move;
-           if (board.newBoardWithmove(move).whiteWon(!white, false) == 1 && !white) return move;
-           if ((board.newBoardWithmove(move).threefold() || board.newBoardWithmove(move).whiteWon(!white, false) == -3) && (WDLProbe.probe(board.genFEN(), white, board.fullMoves, board.halfMoves) > 0)) {
+           if (newBoard.check(white, white)) continue;
+           if (newBoard.whiteWon(!white, false) == 0 && white) return move;
+           if (newBoard.whiteWon(!white, false) == 1 && !white) return move;
+           if ((newBoard.threefold() || newBoard.whiteWon(!white, false) == -3) && (WDLProbe.probe(board.genFEN(), white, board.fullMoves, board.halfMoves) > 0)) {
             Bot.logger.info("Possible threefold");
             continue;
            }
-           Bot.logger.info(board.newBoardWithmove(move).threefold());
+           Bot.logger.info(newBoard.threefold());
            Bot.logger.info("Halfmoves:");
-           Bot.logger.info(board.newBoardWithmove(move).halfMoves);
-            moves.get(WDLProbe.probe(board.newBoardWithmove(move).genFEN(), white, board.newBoardWithmove(move).fullMoves, board.newBoardWithmove(move).halfMoves)).add(move);
+           Bot.logger.info(newBoard.halfMoves);
+            moves.get(WDLProbe.probe(newBoard.genFEN(), !white, newBoard.fullMoves, newBoard.halfMoves)).add(move);
         }
         /* for (String move : moves.get(0)) Bot.logger.info(move);
         System.out.println();
@@ -199,8 +201,8 @@ public class Syzygy {
             int bestScore = 10000;
             String bestMove = top.get(0);
             for (String move : top) {
-                if (DTZProbe.probe(board.newBoardWithmove(move).genFEN(), white, board.newBoardWithmove(move).fullMoves, board.newBoardWithmove(move).halfMoves) < bestScore) {
-                    bestScore = DTZProbe.probe(board.newBoardWithmove(move).genFEN(), white, board.newBoardWithmove(move).fullMoves, board.newBoardWithmove(move).halfMoves);
+                if (DTZProbe.probe(board.newBoardWithmove(move).genFEN(), !white, board.newBoardWithmove(move).fullMoves, board.newBoardWithmove(move).halfMoves) < bestScore) {
+                    bestScore = DTZProbe.probe(board.newBoardWithmove(move).genFEN(), !white, board.newBoardWithmove(move).fullMoves, board.newBoardWithmove(move).halfMoves);
                     bestMove = move;
                 }
             }

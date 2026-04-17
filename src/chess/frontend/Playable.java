@@ -30,7 +30,7 @@ public class Playable implements Frontend {
     bot.move(move);
     Bot.logger.output(move);
 
-    Bot.logger.output(board.toString());
+    Bot.logger.output(board);
 
     if (board.whiteWon(whitesTurn, false) == 0) {
       Bot.logger.output("White won!");

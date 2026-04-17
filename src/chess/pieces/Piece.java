@@ -12,4 +12,8 @@ public interface Piece {
   int value();
 
   String getSquare();
+
+  float[][] pieceSquareScore();
+
+  Piece copy();
 }

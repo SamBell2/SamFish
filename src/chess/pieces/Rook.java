@@ -95,4 +95,22 @@ public class Rook implements Piece {
   public String getSquare() {
     return square;
   }
+
+  public float[][] pieceSquareScore() {
+    return new float[][] {
+      {0,  0, 0, 0, 0, 0, 0,  0},
+      {3,  3, 3, 3, 3, 3, 3,  3},
+      {0,  0, 0, 0, 0, 0, 0,  0},
+      {0,  0, 0, 0, 0, 0, 0,  0},
+      {0,  0, 0, 0, 0, 0, 0,  0},
+      {0,  0, 0, 0, 0, 0, 0,  0},
+      {0,  0, 0, 0, 0, 0, 0,  0},
+      {-1, 0, 0, 2, 2, 0, 0, -1}
+    };
+  }
+
+  public Piece copy() {
+    Piece newPiece = new Rook(square, white);
+    return newPiece;
+  }
 }

@@ -115,4 +115,22 @@ public class Knight implements Piece {
   public String getSquare() {
     return square;
   }
+
+  public float[][] pieceSquareScore() {
+    return new float[][] {
+      {-3, -2, -1, -1, -1, -1, -2, -3},
+      {-2, -1,  0,  0,  0,  0, -1, -2},
+      {-1,  0,  1,  2,  2,  1,  0, -1},
+      {-1,  0,  2,  3,  3,  2,  0, -1},
+      {-1,  0,  2,  3,  3,  2,  0, -1},
+      {-1,  0,  1,  2,  2,  1,  0, -1},
+      {-2, -1,  0,  0,  0,  0, -1, -2},
+      {-3, -4, -1, -1, -1, -1, -4, -3}
+    };
+  }
+
+  public Piece copy() {
+    Piece newPiece = new Knight(square, white);
+    return newPiece;
+  }
 }

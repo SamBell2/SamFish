@@ -103,4 +103,22 @@ public class King implements Piece {
   public String getSquare() {
     return square;
   }
+
+  public float[][] pieceSquareScore() { // TODO
+    return new float[][] {
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0},
+      {0, 0, 0, 0, 0, 0, 0, 0}
+    };
+  }
+
+  public Piece copy() {
+    Piece newPiece = new King(square, white);
+    return newPiece;
+  }
 }

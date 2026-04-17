@@ -7,7 +7,7 @@ import java.util.Collections;
 import java.util.HashMap;
 
 public class Board {
-  Piece[][] board =
+  public Piece[][] board =
       new Piece[][] {
         {null, null, null, null, null, null, null, null},
         {null, null, null, null, null, null, null, null},
@@ -132,7 +132,8 @@ public class Board {
 
   public void move(String move) {
     if (move == null) return;
-    //if (getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()) != null && getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()).isWhite()) fullMoves ++;
+    if (getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()) != null && getPiece(new char[]{move.charAt(0), move.charAt(1)}.toString()).isWhite()) fullMoves++;
+    halfMoves++;
     moves.add(move);
     if (numMoves.containsKey(move)) {
       numMoves.put(move, numMoves.get(move)+1);
@@ -196,6 +197,7 @@ public class Board {
         default:
           break;
       }
+      halfMoves = 0;
     } else {
       Piece piece =
           board[8 - ((int) move.charAt(1) - '0')][
@@ -204,7 +206,7 @@ public class Board {
         if (piece.value() == 1 || board[8 - ((int) move.charAt(3) - '0')][
                 Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] != null) {
           halfMoves = 0;
-        } else halfMoves ++;
+        }
       if (move.length() == 5) {
         board[8 - ((int) move.charAt(1) - '0')][
                 Arrays.binarySearch(Main.columnLetters, "" + move.charAt(0))] =
@@ -268,9 +270,8 @@ public class Board {
         // logger.debug(Integer.toString(Arrays.binarySearch(Main.columnLetters,
         // ""+takePos.charAt(0))));
         board[takeIndex[0]][takeIndex[1]] = null;
+        halfMoves = 0;
         // logger.debug("En passant");
-        FENs.add(genFEN());
-        return;
       }
       board[8 - ((int) move.charAt(3) - '0')][
               Arrays.binarySearch(Main.columnLetters, "" + move.charAt(2))] =
@@ -314,6 +315,7 @@ public class Board {
   public Piece getPiece(String pos) {
     // Bot.logger.info(pos);
     int[] index = posToIndex(pos);
+    if (index[0] < 0 || index[0] > 7 || index[1] < 0 || index[1] > 7) return null;
     //Bot.logger.info(index[0]);
     //Bot.logger.info(index[1]);
     return board[index[0]][index[1]];
@@ -323,11 +325,22 @@ public class Board {
     Board newBoard = new Board(printFormatting);
     if (FEN != null) {
       newBoard.getFEN(FEN);
+      Bot.logger.info("fen");
     }
-    for (String oldMove : moves) {
-      newBoard.move(oldMove);
+    newBoard.moves = new ArrayList<>(moves);
+    for (int i = 0; i < 8; i++) {
+      for (int j = 0; j < 8; j++) {
+        if (board[i][j] == null) {
+          newBoard.board[i][j] = null;
+        } else {
+          newBoard.board[i][j] = board[i][j].copy();
+        }
+      }
     }
-    // System.out.println(move);
+    newBoard.numMoves = new HashMap<>(numMoves);
+    newBoard.fullMoves = fullMoves;
+    newBoard.halfMoves = halfMoves;
+    newBoard.FENs = new ArrayList<>(FENs);
     newBoard.move(move);
     return newBoard;
   }
@@ -348,10 +361,12 @@ public class Board {
     return toReturn;
   }
 
-  public int whiteWon(boolean whitesTurn, boolean showReasons) { // returns 0 (white won) 1(black won) -2(draw) -3(nearly draw) -1 (none)
+  public int whiteWon(boolean whitesTurnNext, boolean showReasons) { // returns 0 (white won) 1(black won) -2(draw) -3(nearly draw) -1 (none)
+    // Threefold repetition
     if (threefold()) {
       return -2;
     }
+    // Almost threefold, opponent could draw
     if (moves.size() > 8
         && (moves.get(moves.size() - 1).equals(moves.get(moves.size() - 5)))
         && (moves.get(moves.size() - 2).equals(moves.get(moves.size() - 6)))
@@ -359,51 +374,33 @@ public class Board {
         && (moves.get(moves.size() - 4).equals(moves.get(moves.size() - 8)))) {
       return -3;
     }
-    boolean escape = false;
-    for (String move : nextPositions(whitesTurn, false)) {
+    // Checkmate
+    boolean whiteCanEscape = false;
+    boolean blackCanEscape = false;
+    for (String move : nextPositions(whitesTurnNext, false)) { // For each of the next moves
       Board nextBoard = newBoardWithmove(move);
-      boolean takenThisMove = false;
-      for (String nextMove : nextBoard.nextPositions(!whitesTurn, false)) {
-        try {
-          if (new String(new char[] {nextMove.charAt(2), nextMove.charAt(3)})
-              .equals(nextBoard.kingSquare(whitesTurn))) {
-            takenThisMove = true;
-          }
-        } catch (Exception e) {
-          // System.out.println("error");
-          // logger.warning(e.getMessage());
-        }
-      }
-      if (!takenThisMove) {
-        //if (showReasons) Bot.logger.info(move);
-        if (showReasons) System.out.println(move);
-        escape = true;
+      if (nextBoard.kingSquare(true) == null) continue;
+      if (nextBoard.kingSquare(false) == null) continue;
+      if (!nextBoard.check(true, !whitesTurnNext)) { // if white is not in check
+        whiteCanEscape = true;
+        break;
+      } else if (!nextBoard.check(false, !whitesTurnNext)) { // if black not in check
+        blackCanEscape = true;
+        break;
       }
     }
-    //if (showReasons) Bot.logger.info(escape ? "can escape" : "can't escape");
-    if (showReasons) System.out.println(escape ? "can escape" : "can't escape");
-    boolean check = false;
-    for (String move : nextPositions(!whitesTurn, false)) {
-      try {
-        if (new String(new char[] {move.charAt(2), move.charAt(3)}).equals(kingSquare(whitesTurn)))
-          check = true;
-      } catch (Exception e) {
-        // System.out.println(move);
-      }
-    }
-    if (whitesTurn) {
-      if (!escape && check) return 1;
-      if (!escape) return -2;
-    } else {
-      if (!escape && check) return 0;
-      if (!escape) return -2;
-    }
+    boolean whiteInCheck = check(true, whitesTurnNext);
+    boolean blackInCheck = check(false, whitesTurnNext);
+    if (whiteInCheck && !whiteCanEscape) return 1;
+    if (blackInCheck && !blackCanEscape) return 0;
+    
     return -1;
   }
 
-  public boolean check(boolean whitesTurn) {
-    String kingPos = kingSquare(whitesTurn);
-    for (String move : nextPositions(!whitesTurn, false)) {
+  public boolean check(boolean whitesInCheck, boolean whiteMovesNext) {
+    String kingPos = kingSquare(whitesInCheck);
+    if (kingPos == null) return true;
+    for (String move : nextPositions(whiteMovesNext, false)) {
       // logger.info(move + " " + kingPos);
       if (move != null
           && move.charAt(2) == kingPos.charAt(0)
